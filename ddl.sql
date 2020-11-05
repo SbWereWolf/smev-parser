@@ -1,18 +1,18 @@
 CREATE TABLE if not exists receive_table
 (
     uid          bigserial,
-    id           text NOT NULL,                                     -- 'Идентификатор ответа'
-    node_id      text,                                              -- 'Идентификатор запроса'
-    content      text NOT NULL,                                     -- 'Содержимое ответа' -- XML
-    ref_id       text,                                              -- 'Ссылка'
-    ref_group_id text,                                              -- 'Ссылка на группу'
+    id           text NOT NULL,
+    node_id      text,
+    content      text NOT NULL,
+    ref_id       text,
+    ref_group_id text,
     created_at   timestamp(0) with time zone DEFAULT now(),
     updated_at   timestamp(0) with time zone,
     deleted_at   timestamp(0) with time zone,
-    request_id   text,                                              -- Переменные необходимые для заполнения шаблона
-    message_type text,                                              -- 'Тип сообщения'
-    error_code   smallint                    DEFAULT '0'::smallint, -- 'Код ошибки'
-    error_text   text,                                              -- 'Текст ошибки'
+    request_id   text,
+    message_type text,
+    error_code   smallint                    DEFAULT '0'::smallint,
+    error_text   text,
     CONSTRAINT receive_table_pkey PRIMARY KEY (uid)
 );
 COMMENT ON TABLE receive_table
@@ -39,9 +39,9 @@ COMMENT ON COLUMN receive_table.error_text
 CREATE TABLE if not exists send_table
 (
     uid         bigserial,
-    id          text    NOT NULL,                                  -- 'Идентификатор запроса'
-    content     text    NOT NULL,                                  -- 'Содержимое запроса'
-    status      text    NOT NULL,                                  -- 'Статус'
+    id          text    NOT NULL,
+    content     text    NOT NULL,
+    status      text    NOT NULL,
     created_at  timestamp(0) with time zone DEFAULT now(),
     updated_at  timestamp(0) with time zone,
     deleted_at  timestamp(0) with time zone,
@@ -49,10 +49,10 @@ CREATE TABLE if not exists send_table
     user_id     bigint,
     "user"      text,
     template_id bigint,
-    is_complete boolean NOT NULL            DEFAULT false,         -- 'Выполнено?'
-    error_code  smallint                    DEFAULT '0'::smallint, -- 'Код ошибки'
-    error_text  text,                                              -- 'Текст ошибки'
-    bindings    json,                                              -- 'Переменные необходимые для заполнения шаблона'
+    is_complete boolean NOT NULL            DEFAULT false,
+    error_code  smallint                    DEFAULT '0'::smallint,
+    error_text  text,
+    bindings    json,
     CONSTRAINT send_table_pkey PRIMARY KEY (uid),
     CONSTRAINT send_table_id_unique UNIQUE (id)
 );
@@ -78,3 +78,17 @@ alter table receive_table
 
 comment on column receive_table.is_processed
     is 'Флаг сообщение обработано';
+
+CREATE TABLE if not exists message_attachment
+(
+    id         bigserial not null
+        constraint message_attachment_pk
+            primary key,
+    request_id text      not null,
+    detail     jsonb     not null
+);
+create unique index message_attachment_request_id_uindex
+    on message_attachment (request_id);
+
+
+
