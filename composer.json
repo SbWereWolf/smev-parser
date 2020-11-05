@@ -1,0 +1,11 @@
+{
+    "name": "sbwerewolf/rpn-smev",
+    "type": "project",
+    "authors": [
+        {
+            "name": "Nick Volkhin",
+            "email": "ulfnew@gmail.com"
+        }
+    ],
+    "require": {}
+}
