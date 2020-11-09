@@ -7,5 +7,9 @@
             "email": "ulfnew@gmail.com"
         }
     ],
-    "require": {}
+    "require": {
+        "ext-pdo": "*",
+        "ext-xmlreader": "*",
+        "ext-json": "*"
+    }
 }

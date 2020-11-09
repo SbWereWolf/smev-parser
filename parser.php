@@ -1,23 +1,51 @@
 <?php
 
-const OBTAIN_CONTENT = '
+$host = getenv('DB_HOST');
+$baseName = getenv('DB_NAME');
+$login = getenv('DB_USER');
+$password = getenv('DB_PASSWORD');
+
+if ($host === false
+    || $baseName === false
+    || $login === false
+    || $password === false
+) {
+    throw new Exception('Database requisites not sufficient');
+}
+
+$unitOfWorkSize = getenv('DB_UNIT_OF_WORK_SIZE');
+if ($unitOfWorkSize === false) {
+    $unitOfWorkSize = 100;
+}
+
+const OBTAIN_CONTENT = "
 select uid, content, error_code, error_text
 from receive_table 
-where is_processed = false 
-limit 1000
+where is_processed = false
+order by is_processed, created_at
+limit :unit_of_work_size
+for update
+";
+
+const MARK_AS_PROCESSED = '
+update receive_table
+set is_processed = true
+where uid = :uid
 ';
 
 const DEFINE_MESSAGE_IDENTITY = '
 update receive_table 
 set request_id = :request_id,
-    message_type = :message_type    
+    message_type = :message_type,
+    updated_at = CURRENT_TIMESTAMP
 where uid = :uid
 ';
 
 const SET_MESSAGE_STATUS = '
 update send_table 
 set error_code = :error_code,
-    error_text = :error_text    
+    error_text = :error_text,
+    updated_at = CURRENT_TIMESTAMP    
 where id = :id
 ';
 
@@ -31,15 +59,26 @@ const WRITE_LICENSE = '
 update send_table 
 set error_code = :error_code,
     error_text = :error_text,
-    is_complete = true
+    is_complete = true,
+    updated_at = CURRENT_TIMESTAMP
 where id = :id
 ';
 
 $db = new PDO(
-    'pgsql:host=localhost;dbname=rpn_smev;',
-    'postgres',
-    'root'
+    "pgsql:host=$host;dbname=$baseName;",
+    $login,
+    $password
 );
+
+$cursor = $db->prepare(OBTAIN_CONTENT);
+if ($cursor !== false) {
+    $cursor->bindParam(
+        ':unit_of_work_size',
+        $unitOfWorkSize,
+        PDO::PARAM_INT
+    );
+}
+
 $defineIdentity = $db->prepare(DEFINE_MESSAGE_IDENTITY);
 $replyToClientId = '';
 $messageType = '';
@@ -48,6 +87,11 @@ if ($defineIdentity !== false) {
     $defineIdentity->bindParam(':request_id', $replyToClientId);
     $defineIdentity->bindParam(':message_type', $messageType);
     $defineIdentity->bindParam(':uid', $uid);
+}
+
+$markAsProcessed = $db->prepare(MARK_AS_PROCESSED);
+if ($markAsProcessed !== false) {
+    $markAsProcessed->bindParam(':uid', $uid);
 }
 
 $setStatus = $db->prepare(SET_MESSAGE_STATUS);
@@ -66,15 +110,17 @@ if ($writeAttachment !== false) {
     $writeAttachment->bindParam(':detail', $detailJson);
 }
 $writeLicense = $db->prepare(WRITE_LICENSE);
-if ($setStatus !== false) {
-    $setStatus->bindParam(':error_code', $errorCode);
-    $setStatus->bindParam(':error_text', $errorText);
-    $setStatus->bindParam(':id', $replyToClientId);
+if ($writeLicense !== false) {
+    $writeLicense->bindParam(':error_code', $errorCode);
+    $writeLicense->bindParam(':error_text', $errorText);
+    $writeLicense->bindParam(':id', $replyToClientId);
 }
 
 $db->beginTransaction();
 
-$cursor = $db->query(OBTAIN_CONTENT);
+if ($cursor !== false && $markAsProcessed !== false) {
+    $cursor->execute();
+}
 while ($cursor && $record = $cursor->fetch(PDO::FETCH_ASSOC)) {
     $content = $record['content'];
 
@@ -180,6 +226,11 @@ while ($cursor && $record = $cursor->fetch(PDO::FETCH_ASSOC)) {
         && $writeLicense !== false
     ) {
         $writeLicense->execute();
+    }
+
+    if ($markAsProcessed !== false) {
+        $uid = $record['uid'];
+        $markAsProcessed->execute();
     }
 }
 
