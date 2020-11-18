@@ -164,9 +164,9 @@ while ($cursor && $record = $cursor->fetch(PDO::FETCH_ASSOC)) {
         $errorText = '';
         $catchCode = false;
         $catchText = false;
-        $catchFilename = true;
-        $catchFileType = true;
-        $catchArchiveName = true;
+        $catchFilename = false;
+        $catchFileType = false;
+        $catchArchiveName = false;
         $statusCode = '';
         while ($reader->read()) {
             if ($isStatus && $catchId && $catchCode && $catchText) {
